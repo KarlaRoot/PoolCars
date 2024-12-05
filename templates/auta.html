@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
+    <title>auta</title>
+</head>
+<body>
+    
+        <a class="redirect-button" href="http://127.0.0.1:5000/">Home</a><br>
+
+        <form action="/submit" method="post" class="vehicle-form">
+            <label for="vin">VIN:</label>
+            <input type="text" id="vin" name="vin" required>
+        
+            <label for="spz">SPZ:</label>
+            <input type="text" id="spz" name="spz" required>
+        
+            <label for="znacka">Značka:</label>
+            <input type="text" id="znacka" name="znacka" required>
+        
+            <label for="model">Model:</label>
+            <input type="text" id="model" name="model" required>
+        
+            <label for="rokVyroby">Rok výroby:</label>
+            <input type="number" id="rokVyroby" name="rokVyroby" required>
+        
+            <label for="najetoKm">Najeto km:</label>
+            <input type="number" id="najetoKm" name="najetoKm" required>
+        
+            <button type="submit" class="button">Odeslat</button>
+        </form>
+</body>
+</html> 

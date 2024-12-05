@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
+    <title>Rezervace</title>
+    <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
+</head>
+<body>
+    <a class="redirect-button" href="http://127.0.0.1:5000/">Home</a><br>
+   
+            <form action="/insertRezervace" method="POST" class="right-form">
+               
+                <div class="left-container">
+                    <label for="prijmeni">Příjmení:</label>
+                        <select name="prijmeni" id="prijmeniSelect">
+                            {% for surname in surnames %}
+                                <option value="{{ surname }}">{{ surname }}</option>
+                            {% endfor %}
+                        </select>
+                    
+                    <!-- Other fields -->
+                    <label for="idZamestnance">ID zaměstnance:</label>
+                    <input type="text" name="idZamestnance" id="idZamestnance" value="{{ employee_info['idZamestnance'] if employee_info else '' }}">
+
+                    <label for="jmeno">Jméno:</label>
+                    <input type="text" name="jmeno" id="jmeno" value="{{ employee_info['jmeno'] }}">
+            
+                    <label for="idAuta">ID auta:</label>
+                    <input type="text" name="idAuta" id="idAuta">
+            
+                    <label for="spz">SPZ:</label>
+                        <select name="spz" id="spz">
+                            {% for car in car_info  %}
+                                <option value="{{ car['spz'] }}">{{ car['spz'] }}</option>
+                            {% endfor %}
+                        </select>
+            
+                    <label for="divize">Divize:</label>
+                    <select name="divize" id="divize">
+                        <option value="technology">Technology</option>
+                        <option value="law">Law</option>
+                        <option value="finance">Finance</option>
+                    </select>
+            
+                    <label for="oddeleni">Oddělení:</label>
+                    <select name="oddeleni" id="oddeleni">
+                        <!-- Možnosti pro Divizi Technology -->
+                        <optgroup label="Technology">
+                            <option value="it">IT</option>
+                            <option value="infra">Infra</option>
+                            <option value="development">Development</option>
+                        </optgroup>
+            
+                        <!-- Možnosti pro Divizi Finance -->
+                        <optgroup label="Finance">
+                            <option value="finance">Finance</option>
+                        </optgroup>
+            
+                        <!-- Možnosti pro Divizi Law -->
+                        <optgroup label="Law">
+                            <option value="management">Management</option>
+                            <option value="directory">Directory</option>
+                        </optgroup>
+                    </select>
+                </div>
+       
+                <div class="right-container">
+                    <!-- Other fields -->
+                    <label for="stavRezervace">Stav rezervace:</label>
+                    <input type="text" name="stavRezervace" id="stavRezervace">
+            
+                    <label for="kmPredJizdou">Km před jízdou:</label>
+                    <input type="text" name="kmPredJizdou" id="kmPredJizdou">
+            
+                    <label for="kmPoJizde">Km po jízdě:</label>
+                    <input type="text" name="kmPoJizde" id="kmPoJizde">
+            
+                    <label for="najetoKm">Najeto km:</label>
+                    <input type="text" name="najetoKm" id="najetoKm">
+            
+                    <label for="poskozeni">Poškození:</label>
+                    <input type="text" name="poskozeni" id="poskozeni">
+            
+                    <label for="prevzetiDne">Datum převzetí:</label>
+                    <input type="date" name="prevzetiDne" id="prevzetiDne">
+            
+                    <label for="odevzdaniDne">Datum odevzdání:</label>
+                    <input type="date" name="odevzdaniDne" id="odevzdaniDne">
+            
+                    <input type="submit" value="Rezervovat">
+                </div>
+                
+            </form>
+            {% if error %}
+                <p>{{ error }}</p>
+            {% endif %}
+           
+  </body>
+
+  <script>
+    document.getElementById('prijmeniSelect').addEventListener('change', function() {
+        var selectedSurname = this.value;
+
+        fetch('/getEmployeeInfo?surname=' + selectedSurname)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('employeeInfo').innerHTML = data.employeeInfo;
+            })
+            .catch(error => console.error('Chyba při načítání dat:', error));
+    });
+    </script>
+</html>

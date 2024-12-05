@@ -1,0 +1,171 @@
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+.form-container {
+    
+        display: flex;
+        justify-content: space-between; /* Use space-between to separate forms */
+        width: 600px; /* Adjust the total width as needed */
+   
+}
+
+form {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 300px;
+    margin-bottom: 20px;
+}
+.two-column-form {
+    display: flex;
+    width: 600px;
+}
+
+.right-form {
+    width: 48%; /* Adjust the width of the right form */
+}
+
+.left-container,
+.right-container {
+    display: flex;
+    flex-direction: column;
+    width: 48%; /* Adjust the width of each container */
+}
+
+.form-column {
+    flex: 1;
+    padding: 20px;
+}
+
+.left-container {
+    float: left;
+    width: 40%; /*podíl šířky */
+    margin-right: 20px; /* změněná hodnota margin-right */
+}
+
+.right-container {
+    float: left;
+    width: 40%;;
+    margin-left: auto;
+}
+
+h2 {
+    text-align: center;
+    color: #333;
+}
+
+label {
+    display: block;
+    margin: 10px 0 5px;
+    color: #555;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+
+button {
+    background-color: #4caf50;
+    color: #fff;
+    padding: 10px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    width: 100%;
+}
+
+
+button:hover {
+    background-color: #45a049;
+}
+
+p {
+    position: absolute;
+    top: 120px; /* You can adjust this value */
+}
+.redirect-button{
+    background-color: rgb(59, 128, 59);
+    color: white;
+    padding: 15px 30px; 
+    font-size: 15px;  
+    cursor: pointer;
+    border-radius: 8px; 
+    margin-bottom: 20px;
+    position: fixed;
+        top: 10px; /* Specifikujte vzdálenost od horního okraje stránky */
+        left: 10px; /* Specifikujte vzdálenost od levého okraje stránky */
+}
+
+.redirect-btn button{
+    background-color: #4a810c;
+    color: rgb(252, 248, 248);
+    padding: 15px 30px;
+    font-size: 20px;   
+    cursor: pointer;
+    border-radius: 5px;     
+    margin-bottom: 20px; 
+    margin-top: 10px
+}
+
+.redirect-btn button:hover {
+    background-color: #9ce2a0;
+}
+
+
+.calendar-container {
+    max-width: 600px;
+    margin: 50px auto;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 20px;
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.dropdown {
+    padding: 10px;
+    font-size: 16px;
+}
+
+input,
+select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 16px;
+}
+
+
+.mesic{
+    display: flex;
+    flex-direction: column;
+
+}
+
+.tyden{
+    display: flex;
+    flex-direction: row;
+
+}
+
+.den{
+    width: 62px;
+
+}

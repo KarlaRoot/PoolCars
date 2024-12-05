@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
+    <title>home</title>
+</head>
+<body>
+    {% if session["user"]%}
+        <p>Vítejte {{session["user"]}}</p>
+    {% endif %}
+    <div class="redirect-btn">
+        <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/login')">Login</button><br>
+        {% if session["admin"] %}
+            <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/auta')">Auta</button><br>
+            <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/zamestnanci')">Zamestnanci</button><br>
+        {% endif %}
+        <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/rezervace')">Rezervace</button><br>
+        <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/logout')">Logout</button><br>        
+    </div>
+    <script>
+        function redirectTo(url) {
+            window.location.href = url;
+        }
+    </script>
+    
+</body>
+</html>
