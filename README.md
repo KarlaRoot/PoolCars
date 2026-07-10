@@ -1,6 +1,3 @@
-# PoolCars
-# PoolCars
-# PoolCars
 
 PoolCars je jednoducha Flask aplikace pro evidenci firemnich aut, zamestnancu
 a rezervaci aut. Aplikace pouziva MySQL databazi, HTML sablony v Jinja2 a
