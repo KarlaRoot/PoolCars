@@ -110,7 +110,8 @@ p {
         left: 10px; /* Specifikujte vzdálenost od levého okraje stránky */
 }
 
-.redirect-btn button{
+.redirect-btn button,
+.redirect-link {
     background-color: #4a810c;
     color: rgb(252, 248, 248);
     padding: 15px 30px;
@@ -118,10 +119,16 @@ p {
     cursor: pointer;
     border-radius: 5px;     
     margin-bottom: 20px; 
-    margin-top: 10px
+    margin-top: 10px;
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
+    width: 100%;
+    box-sizing: border-box;
 }
 
-.redirect-btn button:hover {
+.redirect-btn button:hover,
+.redirect-link:hover {
     background-color: #9ce2a0;
 }
 

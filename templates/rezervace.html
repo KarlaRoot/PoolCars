@@ -1,114 +1,135 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="cs">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://code.jquery.com/jquery-3.6.4.min.js"></script>
     <title>Rezervace</title>
-    <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <a class="redirect-button" href="http://127.0.0.1:5000/">Home</a><br>
-   
-            <form action="/insertRezervace" method="POST" class="right-form">
-               
-                <div class="left-container">
-                    <label for="prijmeni">Příjmení:</label>
-                        <select name="prijmeni" id="prijmeniSelect">
-                            {% for surname in surnames %}
-                                <option value="{{ surname }}">{{ surname }}</option>
-                            {% endfor %}
-                        </select>
-                    
-                    <!-- Other fields -->
-                    <label for="idZamestnance">ID zaměstnance:</label>
-                    <input type="text" name="idZamestnance" id="idZamestnance" value="{{ employee_info['idZamestnance'] if employee_info else '' }}">
+    <a class="redirect-button" href="{{ url_for('home') }}">Home</a><br>
 
-                    <label for="jmeno">Jméno:</label>
-                    <input type="text" name="jmeno" id="jmeno" value="{{ employee_info['jmeno'] }}">
-            
-                    <label for="idAuta">ID auta:</label>
-                    <input type="text" name="idAuta" id="idAuta">
-            
-                    <label for="spz">SPZ:</label>
-                        <select name="spz" id="spz">
-                            {% for car in car_info  %}
-                                <option value="{{ car['spz'] }}">{{ car['spz'] }}</option>
-                            {% endfor %}
-                        </select>
-            
-                    <label for="divize">Divize:</label>
-                    <select name="divize" id="divize">
-                        <option value="technology">Technology</option>
-                        <option value="law">Law</option>
-                        <option value="finance">Finance</option>
-                    </select>
-            
-                    <label for="oddeleni">Oddělení:</label>
-                    <select name="oddeleni" id="oddeleni">
-                        <!-- Možnosti pro Divizi Technology -->
-                        <optgroup label="Technology">
-                            <option value="it">IT</option>
-                            <option value="infra">Infra</option>
-                            <option value="development">Development</option>
-                        </optgroup>
-            
-                        <!-- Možnosti pro Divizi Finance -->
-                        <optgroup label="Finance">
-                            <option value="finance">Finance</option>
-                        </optgroup>
-            
-                        <!-- Možnosti pro Divizi Law -->
-                        <optgroup label="Law">
-                            <option value="management">Management</option>
-                            <option value="directory">Directory</option>
-                        </optgroup>
-                    </select>
-                </div>
-       
-                <div class="right-container">
-                    <!-- Other fields -->
-                    <label for="stavRezervace">Stav rezervace:</label>
-                    <input type="text" name="stavRezervace" id="stavRezervace">
-            
-                    <label for="kmPredJizdou">Km před jízdou:</label>
-                    <input type="text" name="kmPredJizdou" id="kmPredJizdou">
-            
-                    <label for="kmPoJizde">Km po jízdě:</label>
-                    <input type="text" name="kmPoJizde" id="kmPoJizde">
-            
-                    <label for="najetoKm">Najeto km:</label>
-                    <input type="text" name="najetoKm" id="najetoKm">
-            
-                    <label for="poskozeni">Poškození:</label>
-                    <input type="text" name="poskozeni" id="poskozeni">
-            
-                    <label for="prevzetiDne">Datum převzetí:</label>
-                    <input type="date" name="prevzetiDne" id="prevzetiDne">
-            
-                    <label for="odevzdaniDne">Datum odevzdání:</label>
-                    <input type="date" name="odevzdaniDne" id="odevzdaniDne">
-            
-                    <input type="submit" value="Rezervovat">
-                </div>
-                
-            </form>
-            {% if error %}
-                <p>{{ error }}</p>
-            {% endif %}
-           
-  </body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
 
-  <script>
-    document.getElementById('prijmeniSelect').addEventListener('change', function() {
-        var selectedSurname = this.value;
+    <form action="{{ url_for('insert_rezervace') }}" method="post" class="right-form">
+        {{ csrf_token() }}
 
-        fetch('/getEmployeeInfo?surname=' + selectedSurname)
-            .then(response => response.json())
-            .then(data => {
-                document.getElementById('employeeInfo').innerHTML = data.employeeInfo;
-            })
-            .catch(error => console.error('Chyba při načítání dat:', error));
-    });
+        <div class="left-container">
+            <label for="employeeSelect">Zamestnanec:</label>
+            <select name="idZamestnance" id="employeeSelect" required>
+                <option value="">Vyberte zamestnance</option>
+                {% for employee in employees %}
+                    <option
+                        value="{{ employee.get('idZamestnance', '') }}"
+                        {% if employee_info.get('idZamestnance')|string == employee.get('idZamestnance')|string %}selected{% endif %}
+                    >
+                        {{ employee.get('prijmeni', '') }} {{ employee.get('jmeno', '') }} ({{ employee.get('idZamestnance', '') }})
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="idZamestnance">ID zam&#283;stnance:</label>
+            <input type="text" id="idZamestnance" value="{{ employee_info.get('idZamestnance', '') }}" readonly>
+
+            <label for="jmeno">Jm&#233;no:</label>
+            <input type="text" id="jmeno" value="{{ employee_info.get('jmeno', '') }}" readonly>
+
+            <label for="prijmeni">P&#345;&#237;jmen&#237;:</label>
+            <input type="text" id="prijmeni" value="{{ employee_info.get('prijmeni', '') }}" readonly>
+
+            <label for="idAuta">ID auta:</label>
+            <input type="text" id="idAuta" value="{{ employee_info.get('idAuta', '') }}" readonly>
+
+            <label for="spz">SPZ:</label>
+            <select name="spz" id="spz" required>
+                <option value="">Vyberte auto</option>
+                {% for car in car_info %}
+                    <option value="{{ car.get('spz', '') }}" data-id="{{ car.get('idAuta', '') }}" {% if employee_info.get('spz') == car.get('spz') %}selected{% endif %}>
+                        {{ car.get('spz', '') }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="divize">Divize:</label>
+            <input type="text" id="divize" value="{{ employee_info.get('divize', '') }}" readonly>
+
+            <label for="oddeleni">Odd&#283;len&#237;:</label>
+            <input type="text" id="oddeleni" value="{{ employee_info.get('oddeleni', '') }}" readonly>
+        </div>
+
+        <div class="right-container">
+            <label for="stavRezervace">Stav rezervace:</label>
+            <input type="text" name="stavRezervace" id="stavRezervace" value="{{ employee_info.get('stavRezervace', '') }}" required>
+
+            <label for="kmPredJizdou">Km p&#345;ed j&#237;zdou:</label>
+            <input type="number" name="kmPredJizdou" id="kmPredJizdou" min="0" value="{{ employee_info.get('kmPredJizdou', '') }}">
+
+            <label for="kmPoJizde">Km po j&#237;zd&#283;:</label>
+            <input type="number" name="kmPoJizde" id="kmPoJizde" min="0" value="{{ employee_info.get('kmPoJizde', '') }}">
+
+            <label for="najetoKm">Najeto km:</label>
+            <input type="number" name="najetoKm" id="najetoKm" min="0" value="{{ employee_info.get('najetoKm', '') }}">
+
+            <label for="poskozeni">Po&#353;kozen&#237;:</label>
+            <input type="text" name="poskozeni" id="poskozeni" value="{{ employee_info.get('poskozeni', '') }}">
+
+            <label for="prevzetiDne">Datum p&#345;evzet&#237;:</label>
+            <input type="date" name="prevzetiDne" id="prevzetiDne" value="{{ employee_info.get('prevzetiDne', '') }}" required>
+
+            <label for="odevzdaniDne">Datum odevzd&#225;n&#237;:</label>
+            <input type="date" name="odevzdaniDne" id="odevzdaniDne" value="{{ employee_info.get('odevzdaniDne', '') }}" required>
+
+            <input type="submit" value="Rezervovat">
+        </div>
+    </form>
+
+    {% if error %}
+        <p>{{ error }}</p>
+    {% endif %}
+
+    <script>
+        const employeeSelect = document.getElementById("employeeSelect");
+        const carSelect = document.getElementById("spz");
+        const carIdInput = document.getElementById("idAuta");
+
+        function syncCarId() {
+            const selectedOption = carSelect.options[carSelect.selectedIndex];
+            carIdInput.value = selectedOption ? selectedOption.dataset.id || carIdInput.value : carIdInput.value;
+        }
+
+        function setInputValue(inputId, value) {
+            document.getElementById(inputId).value = value || "";
+        }
+
+        employeeSelect.addEventListener("change", function () {
+            const employeeId = this.value;
+            if (!employeeId) {
+                return;
+            }
+
+            fetch("{{ url_for('get_employee_info') }}?employee_id=" + encodeURIComponent(employeeId))
+                .then(response => response.json())
+                .then(data => {
+                    const employee = data.employeeInfo || {};
+                    setInputValue("idZamestnance", employee.idZamestnance);
+                    setInputValue("jmeno", employee.jmeno);
+                    setInputValue("prijmeni", employee.prijmeni);
+                    setInputValue("divize", employee.divize);
+                    setInputValue("oddeleni", employee.oddeleni);
+                })
+                .catch(error => console.error("Failed to load employee data:", error));
+        });
+
+        carSelect.addEventListener("change", syncCarId);
+        syncCarId();
     </script>
+</body>
 </html>

@@ -3,27 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
-    <title>home</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Home</title>
 </head>
 <body>
-    {% if session["user"]%}
-        <p>Vítejte {{session["user"]}}</p>
+    {% if session.get("user") %}
+        <p>V&#237;tejte {{ session.get("user") }}</p>
     {% endif %}
-    <div class="redirect-btn">
-        <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/login')">Login</button><br>
-        {% if session["admin"] %}
-            <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/auta')">Auta</button><br>
-            <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/zamestnanci')">Zamestnanci</button><br>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
         {% endif %}
-        <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/rezervace')">Rezervace</button><br>
-        <button class="redirect-btn" onclick="redirectTo('http://127.0.0.1:5000/logout')">Logout</button><br>        
+    {% endwith %}
+
+    <div class="redirect-btn">
+        {% if not session.get("user") %}
+            <a class="redirect-link" href="{{ url_for('login') }}">Login</a><br>
+        {% endif %}
+
+        {% if session.get("admin") %}
+            <a class="redirect-link" href="{{ url_for('auta') }}">Auta</a><br>
+            <a class="redirect-link" href="{{ url_for('zamestnanci') }}">Zamestnanci</a><br>
+        {% endif %}
+
+        {% if session.get("user") %}
+            <a class="redirect-link" href="{{ url_for('rezervace') }}">Rezervace</a><br>
+            <a class="redirect-link" href="{{ url_for('logout') }}">Logout</a><br>
+        {% endif %}
     </div>
-    <script>
-        function redirectTo(url) {
-            window.location.href = url;
-        }
-    </script>
-    
 </body>
 </html>

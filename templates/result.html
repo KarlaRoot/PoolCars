@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Result</title>
+</head>
+<body>
+    <a class="redirect-button" href="{{ url_for('home') }}">Home</a><br>
+
+    <h2>{{ month }}/{{ year }}</h2>
+    <table>
+        <tbody>
+            {% for week in weeks %}
+                <tr>
+                    {% for day in week %}
+                        <td>{{ day if day else "" }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
