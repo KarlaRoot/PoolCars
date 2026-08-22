@@ -32,6 +32,44 @@ form {
 
 .right-form {
     width: 48%; /* Adjust the width of the right form */
+    transform: translateY(10px);
+}
+
+.reservation-page {
+    flex-direction: column;
+    justify-content: flex-start;
+    height: auto;
+    min-height: 100vh;
+}
+
+.reservation-page .right-form {
+    margin-top: 10px;
+    transform: none;
+}
+
+.reservation-page .flash-messages {
+    box-sizing: border-box;
+    list-style: none;
+    margin: 10px 0 0;
+    padding: 0;
+    width: 48%;
+}
+
+.reservation-page .flash-messages li {
+    border-radius: 4px;
+    padding: 10px 14px;
+}
+
+.reservation-page .flash-messages .success {
+    background-color: #dff0d8;
+    color: #2f6627;
+}
+
+.reservation-page .flash-messages .error {
+    background-color: #ffebee;
+    border: 1px solid #c62828;
+    color: #c62828;
+    font-weight: 600;
 }
 
 .left-container,
@@ -157,6 +195,13 @@ select {
     width: 100%;
     padding: 10px;
     margin-bottom: 16px;
+}
+
+select {
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
 }
 
 

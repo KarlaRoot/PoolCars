@@ -77,9 +77,6 @@ def _reservation_context(employee_info=None, error=None):
     employee_id = None if session.get("admin") else session.get("employee_id")
     employees = db.get_employee_choices(employee_id=employee_id)
 
-    if employee_info is None and employees:
-        employee_info = employees[0]
-
     context = {
         "employee_info": employee_info or {},
         "employees": employees,
@@ -200,7 +197,11 @@ def result():
 @app.route("/rezervace", methods=["GET"])
 @login_required
 def rezervace():
-    return render_template("rezervace.html", **_reservation_context())
+    return render_template(
+        "rezervace.html",
+        **_reservation_context(),
+        clear_form=True,
+    )
 
 
 @app.route("/getEmployeeInfo")
@@ -248,9 +249,9 @@ def insert_rezervace():
             render_template(
                 "rezervace.html",
                 **_reservation_context(
-                    employee_info=form_data,
                     error=f"Missing required fields: {', '.join(missing)}",
                 ),
+                clear_form=True,
             ),
             400,
         )
@@ -269,9 +270,9 @@ def insert_rezervace():
             render_template(
                 "rezervace.html",
                 **_reservation_context(
-                    employee_info=form_data,
                     error="Invalid reservation date range.",
                 ),
+                clear_form=True,
             ),
             400,
         )
@@ -285,9 +286,9 @@ def insert_rezervace():
             render_template(
                 "rezervace.html",
                 **_reservation_context(
-                    employee_info=form_data,
                     error="Selected employee does not exist.",
                 ),
+                clear_form=True,
             ),
             400,
         )
@@ -297,9 +298,9 @@ def insert_rezervace():
             render_template(
                 "rezervace.html",
                 **_reservation_context(
-                    employee_info=form_data,
                     error="Selected car does not exist.",
                 ),
+                clear_form=True,
             ),
             400,
         )
@@ -325,9 +326,9 @@ def insert_rezervace():
         return render_template(
             "rezervace.html",
             **_reservation_context(
-                employee_info=form_data,
                 error="Reservation already exists for the specified period.",
             ),
+            clear_form=True,
         )
 
     if not saved:
@@ -335,9 +336,9 @@ def insert_rezervace():
             render_template(
                 "rezervace.html",
                 **_reservation_context(
-                    employee_info=form_data,
                     error="Reservation could not be saved.",
                 ),
+                clear_form=True,
             ),
             500,
         )

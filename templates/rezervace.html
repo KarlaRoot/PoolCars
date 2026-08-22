@@ -4,22 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Rezervace</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v='3') }}">
 </head>
-<body>
-    <a class="redirect-button" href="{{ url_for('home') }}">Home</a><br>
+<body class="reservation-page">
+    <a class="redirect-button" id="homeLink" href="{{ url_for('home') }}">Home</a>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
+        {% if messages or error %}
             <ul class="flash-messages">
                 {% for category, message in messages %}
                     <li class="{{ category }}">{{ message }}</li>
                 {% endfor %}
+                {% if error %}
+                    <li class="error">{{ error }}</li>
+                {% endif %}
             </ul>
         {% endif %}
     {% endwith %}
 
-    <form action="{{ url_for('insert_rezervace') }}" method="post" class="right-form">
+    <form action="{{ url_for('insert_rezervace') }}" method="post" class="right-form" id="reservationForm" autocomplete="off">
         {{ csrf_token() }}
 
         <div class="left-container">
@@ -91,18 +94,29 @@
         </div>
     </form>
 
-    {% if error %}
-        <p>{{ error }}</p>
-    {% endif %}
-
     <script>
         const employeeSelect = document.getElementById("employeeSelect");
         const carSelect = document.getElementById("spz");
         const carIdInput = document.getElementById("idAuta");
+        const reservationForm = document.getElementById("reservationForm");
+        const homeLink = document.getElementById("homeLink");
+        const shouldClearForm = {{ clear_form|default(false)|tojson }};
+
+        function clearReservationForm() {
+            reservationForm.reset();
+            reservationForm.querySelectorAll("select").forEach(select => {
+                select.selectedIndex = 0;
+            });
+            reservationForm
+                .querySelectorAll("input:not([type='hidden']):not([type='submit'])")
+                .forEach(input => {
+                    input.value = "";
+                });
+        }
 
         function syncCarId() {
             const selectedOption = carSelect.options[carSelect.selectedIndex];
-            carIdInput.value = selectedOption ? selectedOption.dataset.id || carIdInput.value : carIdInput.value;
+            carIdInput.value = selectedOption ? selectedOption.dataset.id || "" : "";
         }
 
         function setInputValue(inputId, value) {
@@ -129,7 +143,18 @@
         });
 
         carSelect.addEventListener("change", syncCarId);
-        syncCarId();
+        homeLink.addEventListener("click", clearReservationForm);
+        window.addEventListener("pageshow", event => {
+            if (shouldClearForm || event.persisted) {
+                clearReservationForm();
+            }
+        });
+
+        if (shouldClearForm) {
+            clearReservationForm();
+        } else {
+            syncCarId();
+        }
     </script>
 </body>
 </html>
