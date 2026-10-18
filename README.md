@@ -174,3 +174,17 @@ PoolCars/
     +-- result.html          # Tabulkovy vypis tydnu v mesici
     +-- logout.html          # Stara odhlasovaci sablona, aktualni route presmeruje na home
 ```
+
+## Ukázky aplikace
+
+### Přihlašovací obrazovka
+
+![Přihlašovací obrazovka](Images/login)
+
+### Hlavní nabídka
+
+![Hlavní nabídka aplikace](Images/menu)
+
+### Rezervace vozidla
+
+![Formulář rezervace vozidla](Images/rezervace)
