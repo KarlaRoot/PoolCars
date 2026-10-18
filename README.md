@@ -140,40 +140,6 @@ protoze k nim je potreba pripravena MySQL databaze se schematem a daty.
 - Soubor `logout.html` je v projektu, ale aktualni `/logout` route ho nepouziva.
 - CSS obsahuje par starsich komentaru s poskozenym kodovanim, funkcne to ale
   neblokuje spusteni aplikace.
-PoolCars/
-├─ main.py                  # Flask aplikace, routy, session, CSRF a validace formularu
-├─ PoolCar.py               # Databazova vrstva pro auta, zamestnance, login a rezervace
-├─ weeks.py                 # Pomocna funkce pro vypocet tydnu v mesici
-├─ testimport.py            # Jednoducha kontrola importu mysql.connector
-├─ requirements.txt         # Python zavislosti
-├─ static/
-│  └─ style.css             # Spolecny CSS styl pro stranky a formulare
-├─ styles/                  # Prazdny adresar, aktualne se v aplikaci nepouziva
-└─ templates/
-   ├─ index.html            # Uvodni rozcestnik podle stavu prihlaseni
-   ├─ login.html            # Prihlasovaci formular
-   ├─ auta.html             # Formular pro pridani auta, pouze admin
-   ├─ zamestnanci.html      # Formular pro pridani zamestnance, pouze admin
-   ├─ rezervace.html        # Formular pro vytvoreni rezervace
-   ├─ result.html           # Tabulkovy vypis tydnu v mesici
-   └─ logout.html           # Stara odhlasovaci sablona, aktualni route presmeruje na home
-+-- main.py                  # Flask aplikace, routy, session, CSRF a validace formularu
-+-- PoolCar.py               # Databazova vrstva pro auta, zamestnance, login a rezervace
-+-- weeks.py                 # Pomocna funkce pro vypocet tydnu v mesici
-+-- testimport.py            # Jednoducha kontrola importu mysql.connector
-+-- requirements.txt         # Python zavislosti
-+-- static/
-|   +-- style.css            # Spolecny CSS styl pro stranky a formulare
-+-- styles/                  # Prazdny adresar, aktualne se v aplikaci nepouziva
-+-- templates/
-    +-- index.html           # Uvodni rozcestnik podle stavu prihlaseni
-    +-- login.html           # Prihlasovaci formular
-    +-- auta.html            # Formular pro pridani auta, pouze admin
-    +-- zamestnanci.html     # Formular pro pridani zamestnance, pouze admin
-    +-- rezervace.html       # Formular pro vytvoreni rezervace
-    +-- result.html          # Tabulkovy vypis tydnu v mesici
-    +-- logout.html          # Stara odhlasovaci sablona, aktualni route presmeruje na home
-```
 
 ## Ukázky aplikace
 
