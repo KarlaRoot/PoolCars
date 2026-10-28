@@ -3,56 +3,65 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <title>Zamestnanci</title>
 </head>
 <body>
-    <a class="redirect-button" href="http://127.0.0.1:5000/">Home</a><br>
+    <a class="redirect-button" href="{{ url_for('home') }}">Home</a><br>
 
-               <form action="/zamestnanci" method="post" class="employee-form">
-                
-                    <div class="two-column">
-                            <label for="idZamestnance">idZamestnance:</label>
-                            <input type="text" id="idZamestnance" name="idZamestnance" required>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
 
-                            <label for="firstName">Jméno:</label>
-                            <input type="text" id="firstName" name="firstName" required>
-                
-                            <label for="lastName">Příjmení:</label>
-                            <input type="text" id="lastName" name="lastName" required>
-                
-                            <label for="login">Login:</label>
-                            <input type="text" id="login" name="login" required>
-                       
-                    </div>
-            
-                    <div class="two-column">
-                        <label for="password">Heslo:</label>
-                        <input type="password" id="password" name="password" required>
-            
-                        <label for="email">E-mail:</label>
-                        <input type="email" id="email" name="email" required>
-            
-                        <label for="division">Divize:</label>
-                        <select id="division" name="division">
-                            <option value="Technology">Technology</option>
-                            <option value="Finance">Finance</option>
-                            <option value="Production">Výroba</option>
-                        </select>
-            
-                        <label for="department">Oddělení:</label>
-                        <select id="department" name="department">
-                            <option value="IT">IT</option>
-                            <option value="Accounting">Účetní</option>
-                            <option value="HR">HR</option>
-                            <option value="Projects">Projekce</option>
-                        </select>
-                        <div class="button">
-                        <button type="submit">Odeslat</button>
-                        </div>
-                    </div>
-                </form>
- 
+    <form action="{{ url_for('zamestnanci') }}" method="post" class="employee-form">
+        {{ csrf_token() }}
+
+        <div class="two-column">
+            <label for="idZamestnance">idZamestnance:</label>
+            <input type="text" id="idZamestnance" name="idZamestnance" value="{{ data.get('idZamestnance', '') if data else '' }}" required>
+
+            <label for="firstName">Jm&#233;no:</label>
+            <input type="text" id="firstName" name="firstName" value="{{ data.get('firstName', '') if data else '' }}" required>
+
+            <label for="lastName">P&#345;&#237;jmen&#237;:</label>
+            <input type="text" id="lastName" name="lastName" value="{{ data.get('lastName', '') if data else '' }}" required>
+
+            <label for="login">Login:</label>
+            <input type="text" id="login" name="login" value="{{ data.get('login', '') if data else '' }}" required>
+        </div>
+
+        <div class="two-column">
+            <label for="password">Heslo:</label>
+            <input type="password" id="password" name="password" required>
+
+            <label for="email">E-mail:</label>
+            <input type="email" id="email" name="email" value="{{ data.get('email', '') if data else '' }}" required>
+
+            <label for="division">Divize:</label>
+            <select id="division" name="division" required>
+                <option value="Technology" {% if data and data.get('division') == 'Technology' %}selected{% endif %}>Technology</option>
+                <option value="Finance" {% if data and data.get('division') == 'Finance' %}selected{% endif %}>Finance</option>
+                <option value="Production" {% if data and data.get('division') == 'Production' %}selected{% endif %}>V&#253;roba</option>
+            </select>
+
+            <label for="department">Odd&#283;len&#237;:</label>
+            <select id="department" name="department" required>
+                <option value="IT" {% if data and data.get('department') == 'IT' %}selected{% endif %}>IT</option>
+                <option value="Accounting" {% if data and data.get('department') == 'Accounting' %}selected{% endif %}>&#218;&#269;etn&#237;</option>
+                <option value="HR" {% if data and data.get('department') == 'HR' %}selected{% endif %}>HR</option>
+                <option value="Projects" {% if data and data.get('department') == 'Projects' %}selected{% endif %}>Projekce</option>
+            </select>
+
+            <div class="button">
+                <button type="submit">Odeslat</button>
+            </div>
+        </div>
+    </form>
 </body>
 </html>
-

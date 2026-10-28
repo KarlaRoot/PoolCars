@@ -1,147 +1,161 @@
+# PoolCars
 
-PoolCars je jednoducha Flask aplikace pro evidenci firemnich aut, zamestnancu
-a rezervaci aut. Aplikace pouziva MySQL databazi, HTML sablony v Jinja2 a
-zakladni session prihlaseni s rozlisenim admin/beznym uzivatelem.
+Flask aplikace pro evidenci firemních aut, zaměstnanců a rezervací v MySQL.
 
-## Co je v projektu
+Tento README popisuje kód **této větve**. Opravy vycházejí z rozpracovaného
+[PR #1](https://github.com/KarlaRoot/PoolCars/pull/1) a z `main` na commitu
+`f7d3aa23f59e759a4d7df414a65fa6fa5abafb5e`. Dokud změny nejsou schválené a
+sloučené, původní `main` neobsahuje zde popsané bezpečnostní opravy.
+Podrobné porovnání a postup kontroly jsou v [docs/PR1-review.md](docs/PR1-review.md).
 
-```text
-PoolCars/
-├─ main.py                  # Flask aplikace, routy, session, CSRF a validace formularu
-├─ PoolCar.py               # Databazova vrstva pro auta, zamestnance, login a rezervace
-├─ weeks.py                 # Pomocna funkce pro vypocet tydnu v mesici
-├─ testimport.py            # Jednoducha kontrola importu mysql.connector
-├─ requirements.txt         # Python zavislosti
-├─ static/
-│  └─ style.css             # Spolecny CSS styl pro stranky a formulare
-├─ styles/                  # Prazdny adresar, aktualne se v aplikaci nepouziva
-└─ templates/
-   ├─ index.html            # Uvodni rozcestnik podle stavu prihlaseni
-   ├─ login.html            # Prihlasovaci formular
-   ├─ auta.html             # Formular pro pridani auta, pouze admin
-   ├─ zamestnanci.html      # Formular pro pridani zamestnance, pouze admin
-   ├─ rezervace.html        # Formular pro vytvoreni rezervace
-   ├─ result.html           # Tabulkovy vypis tydnu v mesici
-   └─ logout.html           # Stara odhlasovaci sablona, aktualni route presmeruje na home
-```
+## Co aplikace umí
 
-Ignorovane/generovane soubory jsou hlavne `__pycache__/` a `*.pyc`.
+- Přihlášení pomocí parametrizovaného SQL a hashů Werkzeug. Nová hesla se hashují.
+- Administrátor přidává auta a zaměstnance. Běžný uživatel rezervuje pouze za sebe
+  a může načítat jen vlastní osobní údaje.
+- Všechny měnící HTTP požadavky včetně odhlášení vyžadují CSRF token.
+- Rezervace ověřuje existenci zaměstnance a auta, pořadí dat a nezáporné celé
+  kilometry. Pokud jsou vyplněné oba stavy tachometru, vzdálenost musí odpovídat
+  jejich rozdílu; prázdné číselné údaje se ukládají jako SQL `NULL`.
+- Údaje zaměstnance a ID auta přebírá server z databáze, nikoli ze skrytých polí.
+- Kontrola překryvu i vložení rezervace běží v jedné transakci. Zámek řádku auta
+  serializuje požadavky pro stejné auto; vyžaduje tabulky InnoDB.
+- Intervaly rezervací zahrnují oba krajní dny. Vrácení a další převzetí stejného
+  auta ve stejný den je kolize. Všechny uložené stavy rezervace blokují termín;
+  rušení rezervací a workflow stavů zatím implementované nejsou.
+- Pomocná funkce `weeks.py` a `/result` zobrazují týdny měsíce. Nejde o přehled
+  dostupnosti aut ani správu existujících rezervací.
 
-## Hlavni funkcionalita
+## Soubory a routy
 
-- Prihlaseni uzivatele pres `/login`.
-- Ukladani hesel jako hash pres Werkzeug; stare plaintext heslo se pri uspesnem
-  loginu automaticky prevede na hash.
-- Rozliseni prav:
-  - admin ma pristup k pridani aut a zamestnancu,
-  - bezny prihlaseny uzivatel muze pracovat s rezervacemi jen pro sebe.
-- CSRF ochrana pro POST/PUT/PATCH/DELETE pozadavky.
-- Pridani auta do tabulky `auta`.
-- Pridani zamestnance do tabulky `zamestnanci`.
-- Vytvoreni rezervace do tabulky `rezervace`.
-- Kontrola kolize rezervaci podle SPZ a datumu prevzeti/odevzdani.
-- AJAX endpoint pro nacteni informaci o zamestnanci.
-- Jednoduchy kalendarni vypis tydnu v mesici.
+| Soubor / adresář | Účel |
+| --- | --- |
+| `main.py` | Flask routy, session, oprávnění, CSRF, validace |
+| `PoolCar.py` | Připojení, parametrizované SQL, hesla a transakce |
+| `requirements.txt` | Přímé závislosti s pevnými verzemi |
+| `schema.sql` | Referenční schéma pro novou prázdnou databázi |
+| `templates/`, `static/` | Jinja šablony a CSS |
+| `weeks.py` | Kalendářní týdny |
+| `tests/` | Unit testy a volitelné integrační testy MySQL |
+| `.github/workflows/tests.yml` | CI pro Python 3.10/3.12 a MySQL 8.4 |
+| `Images/` | Zachované starší snímky obrazovek |
 
-## Routy
-
-| Route | Metody | Popis |
+| Route | Metoda | Přístup / výsledek |
 | --- | --- | --- |
-| `/` | GET | Uvodni stranka a navigace |
-| `/login` | GET, POST | Prihlaseni uzivatele |
-| `/logout` | GET | Vymazani session a navrat na home |
-| `/auta` | GET | Formular pro pridani auta, pouze admin |
-| `/submit` | POST | Zpracovani formulare auta, pouze admin |
-| `/zamestnanci` | GET, POST | Formular a ulozeni zamestnance, pouze admin |
-| `/rezervace` | GET | Formular rezervace, pouze prihlaseny uzivatel |
-| `/insertRezervace` | POST | Ulozeni rezervace, pouze prihlaseny uzivatel |
-| `/getEmployeeInfo` | GET | JSON detail zamestnance s kontrolou opravneni |
-| `/result` | POST | Vypis tydnu pro zadany rok a mesic |
+| `/` | GET | Rozcestník |
+| `/login` | GET, POST | Přihlášení; POST vyžaduje CSRF |
+| `/logout` | POST | Smazání session; vyžaduje CSRF |
+| `/auta`, `/submit` | GET, POST | Formulář auta / uložení; pouze admin |
+| `/zamestnanci` | GET, POST | Zaměstnanci; pouze admin |
+| `/rezervace`, `/insertRezervace` | GET, POST | Formulář / uložení; přihlášení |
+| `/getEmployeeInfo` | GET | JSON; vlastní ID, admin libovolné ID |
+| `/result` | POST | Týdny měsíce; CSRF |
 
-## Databaze
+Úspěšný zápis přesměruje na formulář (POST/Redirect/GET); kolize rezervace vrací
+HTTP 409, neplatné vstupy 400 a chyba při ukládání 500.
 
-Aplikace ocekava MySQL databazi, ve vychozim nastaveni databazi `poolcars`.
-Z kodu jsou pouzivane tyto tabulky a sloupce:
+## Lokální spuštění
 
-- `auta`: `idAuta`, `vin`, `spz`, `znacka`, `model`, `rokVyroby`, `najetoKm`
-- `zamestnanci`: `idZamestnance`, `jmeno`, `prijmeni`, `login`, `admin`,
-  `heslo`, `email`, `divize`, `oddeleni`
-- `rezervace`: `idZamestnance`, `jmeno`, `prijmeni`, `divize`, `oddeleni`,
-  `idAuta`, `spz`, `stavRezervace`, `prevzetiDne`, `odevzdaniDne`,
-  `kmPredJizdou`, `kmPoJizde`, `najetoKm`, `poskozeni`
+Vyžaduje Python 3.10+ a MySQL 8.4 s InnoDB. Integrační CI používá MySQL 8.4.
+Následující příkazy jsou pro Bash; v PowerShellu aktivuj `.venv\\Scripts\\Activate.ps1`
+a proměnné nastavuj pomocí `$env:JMENO = "hodnota"`.
 
-SQL migrace/schema neni v tomto adresari ulozene.
-
-## Konfigurace
-
-Konfigurace se bere z promennych prostredi:
-
-| Promenna | Vychozi hodnota | Popis |
-| --- | --- | --- |
-| `SECRET_KEY` | nahodne v pameti | Flask secret pro session; v produkci nastavit pevne |
-| `LOG_LEVEL` | `INFO` | Uroven logovani |
-| `FLASK_ENV` | prazdne | Pri `development` zapne Flask debug mode |
-| `DB_HOST` | `localhost` | Host MySQL |
-| `DB_PORT` | prazdne | Port MySQL, pokud je potreba |
-| `DB_USER` | `root` | Uzivatel MySQL |
-| `DB_PASSWORD` | prazdne | Heslo MySQL |
-| `DB_NAME` | `poolcars` | Nazev databaze |
-| `DB_CONNECTION_TIMEOUT` | `3` | Timeout pripojeni v sekundach |
-| `PASSWORD_HASH_METHOD` | `pbkdf2:sha256` | Metoda hashovani hesel |
-
-## Spusteni lokalne
-
-```powershell
-cd C:\Users\rek11\Documents\Doc\GitHub\PoolCars
+```bash
+git clone https://github.com/KarlaRoot/PoolCars.git
+cd PoolCars
+# Před sloučením oprav přepni na větev uvedenou v kontrolním PR.
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-
-$env:SECRET_KEY = "dev-secret-change-me"
-$env:DB_HOST = "localhost"
-$env:DB_USER = "root"
-$env:DB_PASSWORD = "heslo"
-$env:DB_NAME = "poolcars"
-$env:FLASK_ENV = "development"
-
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+export SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(48))')"
+export DB_HOST=127.0.0.1
+export DB_PORT=3306
+export DB_USER=poolcars_app
+export DB_PASSWORD='vlastni-heslo'
+export DB_NAME=poolcars
 python main.py
 ```
 
-## Testovani a overeni
+Před startem založ databázi a samostatného databázového uživatele. Aplikace
+potřebuje SELECT/INSERT/UPDATE; nepotřebuje `LOCK TABLES` ani správu databází.
+Do **nové prázdné** databáze může její správce načíst `schema.sql`, například
+`mysql -h 127.0.0.1 -u SPRAVCE -p poolcars < schema.sql`.
+Schéma neobsahuje demo účty ani hesla. Prvního zaměstnance vytvoř přes
+`Databaze.insert_employee(...)` v Pythonu s nastavenými DB proměnnými a jeho
+`admin=1` nastav správcem databáze; běžný webový formulář admin práva nepřiděluje.
 
-Automaticka testovaci sada zatim v projektu neni. `python -m unittest discover`
-nasel 0 testu.
+Aplikace se bez `SECRET_KEY` nespustí. Pro opakované starty a všechny procesy
+používej stejnou náhodnou hodnotu uloženou mimo Git. Její změna zneplatní session.
+Flask vývojový server slouží k lokálnímu ověření. Veřejné nasazení vyžaduje HTTPS,
+WSGI server, vypnutý debug, omezení pokusů o přihlášení a provozní konfiguraci;
+projekt zatím neobsahuje rate limiting ani kompletní produkční nasazení.
 
-Provedene kontroly 2026-07-10:
+## Konfigurace a existující data
 
-- `python -m py_compile main.py PoolCar.py weeks.py testimport.py` proslo.
-- `python -m compileall .` proslo.
-- Flask test client:
-  - `GET /` vraci 200.
-  - `GET /login` vraci 200.
-  - `GET /auta` bez admin session presmeruje s 302.
-  - `GET /rezervace` bez login session presmeruje s 302.
-  - `POST /result` s validnim CSRF tokenem vraci 200.
-  - `POST /result` bez CSRF tokenu vraci 400.
-  - `POST /login` s prazdnymi udaji vraci 400.
-  - Admin `GET /auta` a `GET /zamestnanci` vraci 200.
-  - Admin validace neplatneho auta na `/submit` vraci 400.
-  - Admin validace prazdneho formulare `/zamestnanci` vraci 400.
-  - Bezny uzivatel na `/getEmployeeInfo?employee_id=2` mimo vlastni ID vraci 403.
-- `weeks.get_weeks_of_month(2026, 7)` vraci ocekavanou tabulku tydnu a mesic
-  mimo rozsah vyvola `ValueError`.
+| Proměnná | Výchozí hodnota | Význam |
+| --- | --- | --- |
+| `SECRET_KEY` | žádná, povinná | Sdílený náhodný klíč pro podepsané session |
+| `SESSION_COOKIE_SECURE` | `0` | Na HTTPS nastav `1`; lokálně HTTP ponech `0` |
+| `DB_HOST` / `DB_NAME` | `localhost` / `poolcars` | MySQL host a databáze |
+| `DB_USER` / `DB_PASSWORD` | `root` / žádné | Použij vlastní účet s omezenými právy |
+| `DB_PORT` | výchozí port konektoru | Volitelný port |
+| `DB_CONNECTION_TIMEOUT` | `3` | Timeout připojení v sekundách |
+| `PASSWORD_HASH_METHOD` | `pbkdf2:sha256` | Hashování nových a migrovaných hesel |
+| `ALLOW_LEGACY_PASSWORDS` | `0` | Jen dočasná migrace starých plaintext hesel |
+| `LOG_LEVEL` | `INFO` | Úroveň logů |
+| `FLASK_ENV` | prázdná | `development` zapne debug při `python main.py` |
 
-Databazove zapisy a prihlaseni proti realnym uzivatelum nebyly spusteny,
-protoze k nim je potreba pripravena MySQL databaze se schematem a daty.
+Referenční schéma není automatická migrace existující databáze. Před přechodem
+zálohuj a ověř její skutečnou strukturu: tabulky `auta`, `zamestnanci`, `rezervace`
+musí být InnoDB; `auta.id` je primární klíč (Python ho vrací jako `idAuta`),
+`rezervace.idAuta` na něj odkazuje; `heslo` musí mít kapacitu alespoň 255 znaků,
+`login` a SPZ musí být jednoznačné. Volitelné kilometrové sloupce musí povolovat
+NULL. Index `(idAuta, prevzetiDne, odevzdaniDne)` omezuje rozsah kontroly překryvu.
+Staré duplicitní účty, překryvy a neplatné reference vyřeš před změnou omezení.
 
-## Poznamky
+Plaintext hesla jsou standardně odmítaná. Po kontrole délky sloupce a záloze lze
+**dočasně** nastavit `ALLOW_LEGACY_PASSWORDS=1`: úspěšný login staré heslo nahradí
+hashem. Poté režim vypni a zbývající účty resetuj. Staré plaintext heslo obsahující
+`$` vyžaduje reset, protože je záměrně považované za hash. Neznámý či poškozený
+hash se nikdy neověřuje jako plaintext. Migrace se na databázi nespouští automaticky.
+Při přechodu z veřejně známého původního Flask klíče nastav nový náhodný klíč,
+aby se zneplatnily dřívější session.
 
-- Projekt ma vlastni `.git` adresar primo v `PoolCars/`.
-- Soubor `logout.html` je v projektu, ale aktualni `/logout` route ho nepouziva.
-- CSS obsahuje par starsich komentaru s poskozenym kodovanim, funkcne to ale
-  neblokuje spusteni aplikace.
+## Ověření
+
+```bash
+python -m pip check
+python -m py_compile main.py PoolCar.py weeks.py
+python -m unittest discover -v
+```
+
+Běžný běh nepotřebuje MySQL: obsahuje 35 testů přihlášení, oprávnění, CSRF,
+rezervací a databázových chyb; 3 MySQL testy jsou výslovně přeskočené.
+Mockované testy samy neprokazují chování databázových zámků.
+
+Pro integrační běh připrav **samostatnou prázdnou databázi** s názvem končícím
+`_test`, nastav DB proměnné na ni a spusť:
+
+```bash
+export DB_NAME=poolcars_test
+export RUN_MYSQL_TESTS=1
+python -m unittest tests.test_mysql -v
+```
+
+Testy si vytvoří tabulky, ověří skutečné hashované přihlášení, SQL injection,
+překryvy i dva souběžné požadavky a své tabulky odstraní. Odmítnou neprázdnou
+databázi. Nesměřuj je na provozní data. CI spouští totéž v dočasné MySQL službě.
+
+Před schválením ještě ručně ověř v testovací aplikaci: admin přidá auto a
+zaměstnance, běžný uživatel se přihlásí a vidí jen sebe a dostupné SPZ, uloží
+rezervaci, opakovaný překryv dostane chybu a po odhlášení už chráněné stránky
+neotevře. Prázdný formulář po uložení a při návratu z Home je záměrné chování
+převzaté z druhého commitu PR #1.
 
 ## Ukázky aplikace
+
+Starší snímky z `main` jsou zachované jako ilustrace. Nejsou důkazem aktuálního
+bezpečnostního chování ani výsledkem automatických testů.
 
 ### Přihlašovací obrazovka
 

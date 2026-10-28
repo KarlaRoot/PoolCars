@@ -1,207 +1,421 @@
-from flask import Flask, render_template, request, flash, session, make_response, redirect, url_for
-from PoolCar import Databaze
+import hmac
+import logging
+import os
+import secrets
+from datetime import date
+from functools import wraps
 
+from flask import Flask, abort, flash, jsonify, redirect, render_template, request, session, url_for
+from markupsafe import Markup
+
+from PoolCar import Databaze
+from weeks import get_weeks_of_month
+
+
+logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = "ultratajneheslo123"
+app.secret_key = os.environ.get("SECRET_KEY")
+if not app.secret_key:
+    raise RuntimeError("Set SECRET_KEY to a persistent random value before starting PoolCars.")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=os.environ.get("SESSION_COOKIE_SECURE") == "1",
+)
 
-@app.route('/')
+def csrf_token():
+    token = session.get("_csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["_csrf_token"] = token
+    return Markup(f'<input type="hidden" name="csrf_token" value="{token}">')
+
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+@app.before_request
+def validate_csrf_token():
+    if request.method not in {"POST", "PUT", "PATCH", "DELETE"}:
+        return
+
+    session_token = session.get("_csrf_token")
+    request_token = request.form.get("csrf_token") or request.headers.get("X-CSRF-Token")
+
+    if not session_token or not request_token or not hmac.compare_digest(
+        session_token.encode("utf-8"), request_token.encode("utf-8")
+    ):
+        logger.warning("Rejected invalid CSRF token for %s", request.path)
+        abort(400)
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not session.get("admin", False):
+            flash("Access denied.", "error")
+            return redirect(url_for("home"))
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
+def login_required(view):
+    @wraps(view)
+    def wrapped_view(*args, **kwargs):
+        if not session.get("user"):
+            flash("Please log in first.", "error")
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+
+    return wrapped_view
+
+
+def _missing_fields(form_data, required_fields):
+    return [field for field in required_fields if not form_data.get(field)]
+
+
+def _reservation_context(employee_info=None, error=None):
+    db = Databaze()
+    employee_id = None if session.get("admin") else session.get("employee_id")
+    employees = db.get_employee_choices(employee_id=employee_id)
+
+    context = {
+        "employee_info": employee_info or {},
+        "employees": employees,
+        "car_info": db.get_car_info(),
+    }
+    if error:
+        context["error"] = error
+    return context
+
+
+def _employee_access_allowed(employee_id):
+    if session.get("admin"):
+        return True
+    return str(session.get("employee_id")) == str(employee_id)
+
+
+@app.route("/")
 def home():
-    return render_template('index.html')
+    return render_template("index.html")
 
 
-@app.route('/login', methods=['GET', 'POST'])
+@app.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
-        db_instance = Databaze(username, password)
-        resultlogin = db_instance.login()
-        if resultlogin == True:
-            session["user"] = username
-            return redirect(url_for('home'))
-        else:
-            print("Přihlášení neúspěšné. Zkus to znovu. Main")
-        return render_template('login.html')
-    return render_template('login.html')
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+
+        if not username or not password:
+            flash("Username and password are required.", "error")
+            return render_template("login.html"), 400
+
+        db_instance = Databaze(username=username, password=password)
+        user = db_instance.login()
+
+        if user:
+            session.clear()
+            session["user"] = user.get("login", username)
+            session["employee_id"] = user.get("idZamestnance")
+            session["admin"] = user.get("admin") in (True, 1, "1")
+            logger.info("Successful login for user: %s", username)
+            return redirect(url_for("home"))
+
+        logger.warning("Failed login attempt for user: %s", username)
+        flash("Invalid username or password.", "error")
+
+    return render_template("login.html")
 
 
-@app.route('/auta')
+@app.route("/auta")
+@admin_required
 def auta():
-    try:
-        session["admin"]
-        return render_template('auta.html')
-    except:
-        return redirect(url_for('home'))
-   
-@app.route('/zamestnanci', methods=['GET', 'POST'])
+    return render_template("auta.html")
+
+
+@app.route("/zamestnanci", methods=["GET", "POST"])
+@admin_required
 def zamestnanci():
-    
-        try:
-                admin = session.get("admin", False)
-                if request.method == 'POST':
-                    idZamestnance = request.form.get('idZamestnance')
-                    firstName = request.form.get('firstName')
-                    lastName = request.form.get('lastName')
-                    login = request.form.get('login')
-                    password = request.form.get('password')
-                    email = request.form.get('email')
-                    division = request.form.get('division')
-                    department = request.form.get('department')
+    if request.method == "POST":
+        required_fields = [
+            "idZamestnance",
+            "firstName",
+            "lastName",
+            "login",
+            "password",
+            "email",
+            "division",
+            "department",
+        ]
+        form_data = {field: request.form.get(field, "").strip() for field in required_fields}
+        missing = _missing_fields(form_data, required_fields)
 
-                    db = Databaze(username='your_username', password='your_password')
-                    
-                    db.insert_employee(idZamestnance, firstName, lastName, login, password, email, division, department)
+        if missing:
+            flash(f"Missing required fields: {', '.join(missing)}", "error")
+            return render_template("zamestnanci.html", data=form_data), 400
 
-            
-                    return render_template('zamestnanci.html', data={'idZamestnance': idZamestnance, 'firstName': firstName, 'lastName': lastName, 'login': login, 'password': password, 'email': email, 'division': division, 'department': department})
-        except:
-                return redirect(url_for('home'))
-        
-        return render_template('zamestnanci.html')
-  
-   
+        db = Databaze()
+        saved = db.insert_employee(
+            form_data["idZamestnance"],
+            form_data["firstName"],
+            form_data["lastName"],
+            form_data["login"],
+            form_data["password"],
+            form_data["email"],
+            form_data["division"],
+            form_data["department"],
+        )
 
-@app.route("/result", methods = ["POST"])
+        if not saved:
+            flash("Employee could not be saved.", "error")
+            return render_template("zamestnanci.html", data=form_data), 500
+
+        flash("Employee saved.", "success")
+        return redirect(url_for("zamestnanci"))
+
+    return render_template("zamestnanci.html")
+
+
+@app.route("/result", methods=["POST"])
 def result():
-    selected_year = int(request.form['rok'])
-    selected_month = int(request.form['mesic'])
-    
+    try:
+        selected_year = int(request.form["rok"])
+        selected_month = int(request.form["mesic"])
+        if not (1 <= selected_month <= 12 and 1900 < selected_year <= 9999):
+            raise ValueError("Invalid date range")
+    except (ValueError, KeyError):
+        flash("Invalid date input.", "error")
+        return redirect(url_for("home"))
+
+    weeks = get_weeks_of_month(selected_year, selected_month)
+    return render_template(
+        "result.html",
+        year=selected_year,
+        month=selected_month,
+        weeks=weeks,
+    )
 
 
-
-@app.route('/rezervace', methods=['GET', 'POST'])
+@app.route("/rezervace", methods=["GET"])
+@login_required
 def rezervace():
-    if request.method == 'POST':
-        idZamestnance = request.form.get('idZamestnance')
-        employee_info = {'idZamestnance': '', 'jmeno': ''}
+    return render_template(
+        "rezervace.html",
+        **_reservation_context(),
+        clear_form=True,
+    )
 
-        # Získání příjmení zaměstnanců
-        db = Databaze(username='your_username', password='your_password')
-        surnames = db.get_employee_surnames()
 
-        # Výpis příjmení do konzole
-        print("Surnames in /rezervace:", surnames)
-        # Přesměrování na jinou cestu pro zpracování formuláře
-        return redirect(url_for('insert_rezervace'))
-    else:
-      
-        # Set default values for employee_info
-        employee_info = {'idZamestnance': '', 'jmeno': ''}
+@app.route("/getEmployeeInfo")
+@login_required
+def get_employee_info():
+    employee_id = request.args.get("employee_id", "").strip()
+    if not employee_id:
+        return jsonify({"employeeInfo": {}}), 400
 
-        # Získání příjmení zaměstnanců
-        db = Databaze(username='your_username', password='your_password')
-        surnames = db.get_employee_surnames()
+    if not _employee_access_allowed(employee_id):
+        return jsonify({"employeeInfo": {}}), 403
 
-        # Výpis příjmení do konzole
-        print("Surnames in /rezervace:", surnames)
+    db = Databaze()
+    return jsonify({"employeeInfo": db.get_employee_info_by_id(employee_id)})
 
-    return render_template('rezervace.html', employee_info=employee_info, surnames=surnames)
 
-@app.route('/insertRezervace', methods=['POST'])
+@app.route("/insertRezervace", methods=["POST"])
+@login_required
 def insert_rezervace():
-    if request.method == 'POST':
-        # Zpracování odeslaného formuláře
-        idZamestnance = request.form.get('idZamestnance')
-        jmeno = request.form.get('jmeno')
-        idAuta = request.form.get('idAuta')
-        spz = request.form.get('spz')
-        stavRezervace = request.form.get('stavRezervace')
-        kmPredJizdou = request.form.get('kmPredJizdou')
-        kmPoJizde = request.form.get('kmPoJizde')
-        najetoKm = request.form.get('najetoKm')
-        poskozeni = request.form.get('poskozeni')
-        prevzetiDne = request.form.get('prevzetiDne')
-        odevzdaniDne = request.form.get('odevzdaniDne')
-        divize = request.form.get('divize')
-        oddeleni = request.form.get('oddeleni')
+    fields = [
+        "idZamestnance",
+        "spz",
+        "stavRezervace",
+        "kmPredJizdou",
+        "kmPoJizde",
+        "najetoKm",
+        "poskozeni",
+        "prevzetiDne",
+        "odevzdaniDne",
+        "divize",
+        "oddeleni",
+    ]
+    form_data = {field: request.form.get(field, "").strip() for field in fields}
+    required_fields = [
+        "idZamestnance",
+        "spz",
+        "stavRezervace",
+        "prevzetiDne",
+        "odevzdaniDne",
+    ]
+    missing = _missing_fields(form_data, required_fields)
 
-       
-        db = Databaze(username='your_username', password='your_password')
-        car_info = db.get_car_info()
-        
-        
+    if missing:
+        return (
+            render_template(
+                "rezervace.html",
+                **_reservation_context(
+                    error=f"Missing required fields: {', '.join(missing)}",
+                ),
+                clear_form=True,
+            ),
+            400,
+        )
 
-        existing_reservation = db.check_existing_reservation(spz, prevzetiDne, odevzdaniDne)
+    if not _employee_access_allowed(form_data["idZamestnance"]):
+        flash("Access denied.", "error")
+        return redirect(url_for("rezervace"))
 
-        surnames = []  
-        employee_info = None  
+    try:
+        prevzeti_dne = date.fromisoformat(form_data["prevzetiDne"])
+        odevzdani_dne = date.fromisoformat(form_data["odevzdaniDne"])
+        if odevzdani_dne < prevzeti_dne:
+            raise ValueError("End date must not be before start date")
+    except ValueError:
+        return (
+            render_template(
+                "rezervace.html",
+                **_reservation_context(
+                    error="Invalid reservation date range.",
+                ),
+                clear_form=True,
+            ),
+            400,
+        )
 
-         # rezervace již existuje
-        if existing_reservation:
-            return render_template('rezervace.html', car_info=car_info, surnames=surnames,
-                                employee_info=employee_info, error="Reservation already exists for the specified period.")
+    try:
+        mileage = {
+            field: int(form_data[field]) if form_data[field] else None
+            for field in ("kmPredJizdou", "kmPoJizde", "najetoKm")
+        }
+        if any(value is not None and value < 0 for value in mileage.values()):
+            raise ValueError("Negative mileage")
+        before, after = mileage["kmPredJizdou"], mileage["kmPoJizde"]
+        if before is not None and after is not None:
+            distance = after - before
+            if distance < 0 or mileage["najetoKm"] not in (None, distance):
+                raise ValueError("Inconsistent mileage")
+            mileage["najetoKm"] = distance
+    except ValueError:
+        return render_template(
+            "rezervace.html",
+            **_reservation_context(error="Invalid reservation mileage."),
+            clear_form=True,
+        ), 400
 
-        # Získání příjmení zaměstnanců z formuláře
-        prijmeni = request.form.get('prijmeni')
-        prijmeni_list = [prijmeni] if prijmeni else []
-        print("spz:", spz)
+    db = Databaze()
+    employee = db.get_employee_info_by_id(form_data["idZamestnance"])
+    car = db.get_car_info_by_spz(form_data["spz"])
 
-        # Iterace přes každé příjmení a provedení rezervace
-        for prijmeni in prijmeni_list:
-            db.inzert_rezervace(
-                idZamestnance, jmeno, prijmeni, divize, oddeleni,
-                idAuta, spz, stavRezervace, prevzetiDne, odevzdaniDne,
-                kmPredJizdou, kmPoJizde, najetoKm, poskozeni
-            )
-        spz = request.form.get('spz')
+    if not employee:
+        return (
+            render_template(
+                "rezervace.html",
+                **_reservation_context(
+                    error="Selected employee does not exist.",
+                ),
+                clear_form=True,
+            ),
+            400,
+        )
 
-        
-        if prijmeni_list:
-            surname = prijmeni_list[0]
-            # Získání aktuálních hodnot pro 'spz' a příjmení zaměstnanců
-            surnames = [surname for surname in db.get_employee_surnames()]
+    if not car:
+        return (
+            render_template(
+                "rezervace.html",
+                **_reservation_context(
+                    error="Selected car does not exist.",
+                ),
+                clear_form=True,
+            ),
+            400,
+        )
 
-            # Získání informací o zaměstnanci podle vybraného příjmení
-            employee_info = db.get_employee_info_by_surname(surname)
-            print("Surnames:", surnames)
+    saved, reason = db.insert_rezervace_if_available(
+        employee["idZamestnance"],
+        employee["jmeno"],
+        employee["prijmeni"],
+        employee.get("divize", ""),
+        employee.get("oddeleni", ""),
+        car.get("idAuta"),
+        car["spz"],
+        form_data["stavRezervace"],
+        form_data["prevzetiDne"],
+        form_data["odevzdaniDne"],
+        mileage["kmPredJizdou"],
+        mileage["kmPoJizde"],
+        mileage["najetoKm"],
+        form_data["poskozeni"],
+    )
 
-            return render_template('rezervace.html', car_info=car_info, surnames=surnames,
-                                   employee_info=employee_info if 'employee_info' in locals() else None)
-        else:
-          
-            return render_template('rezervace.html', car_info=car_info, surnames=[], employee_info=None)
+    if reason == "conflict":
+        return render_template(
+            "rezervace.html",
+            **_reservation_context(
+                error="Reservation already exists for the specified period.",
+            ),
+            clear_form=True,
+        ), 409
 
-    # GET
-    return render_template('rezervace.html')
+    if not saved:
+        return (
+            render_template(
+                "rezervace.html",
+                **_reservation_context(
+                    error="Reservation could not be saved.",
+                ),
+                clear_form=True,
+            ),
+            500,
+        )
+
+    flash("Reservation saved.", "success")
+    return redirect(url_for("rezervace"))
 
 
-@app.route('/submit', methods=['POST'])
+@app.route("/submit", methods=["POST"])
+@admin_required
 def submit():
-    if request.method == 'POST':
-        vin = request.form.get('vin')
-        spz = request.form.get('spz')
-        znacka = request.form.get('znacka')
-        model = request.form.get('model')
-        rok_vyroby = request.form.get('rokVyroby')
-        najeto_km = request.form.get('najetoKm')
+    required_fields = ["vin", "spz", "znacka", "model", "rokVyroby", "najetoKm"]
+    form_data = {field: request.form.get(field, "").strip() for field in required_fields}
+    missing = _missing_fields(form_data, required_fields)
 
-        print(f"Odeslaná data: {vin}, {spz}, {znacka}, {model}, {rok_vyroby}, {najeto_km}")
+    if missing:
+        flash(f"Missing required fields: {', '.join(missing)}", "error")
+        return render_template("auta.html", data=form_data), 400
 
-        db = Databaze(username='your_username', password='your_password')
-        db.insert_car(vin, spz, znacka, model, rok_vyroby, najeto_km)
+    try:
+        rok_vyroby = int(form_data["rokVyroby"])
+        najeto_km = int(form_data["najetoKm"])
+        if rok_vyroby < 1886 or najeto_km < 0:
+            raise ValueError("Invalid car data")
+    except ValueError:
+        flash("Invalid car year or mileage.", "error")
+        return render_template("auta.html", data=form_data), 400
 
-        print(f"Data byla úspěšně vložena do databáze: {vin}, {spz}, {znacka}, {model}, {rok_vyroby}, {najeto_km}")
+    db = Databaze()
+    saved = db.insert_car(
+        form_data["vin"],
+        form_data["spz"],
+        form_data["znacka"],
+        form_data["model"],
+        rok_vyroby,
+        najeto_km,
+    )
 
-        return render_template('auta.html')
+    if not saved:
+        flash("Car could not be saved.", "error")
+        return render_template("auta.html", data=form_data), 500
+
+    flash("Car saved.", "success")
+    return redirect(url_for("auta"))
 
 
-
-
-
-@app.route('/logout')
+@app.route("/logout", methods=["POST"])
 def logout():
     session.clear()
-    return redirect(url_for('home'))
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return redirect(url_for("home"))
 
 
-"""
-@app.route("/zamestnanci")
-if session admin == true
-prokliky na dalsi formulare
-session [user]
-session [admin]
-"""
+if __name__ == "__main__":
+    debug_mode = os.environ.get("FLASK_ENV") == "development"
+    app.run(debug=debug_mode)

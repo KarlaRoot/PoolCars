@@ -3,33 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{{url_for('static', filename='style.css')}}">
-    <title>auta</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <title>Auta</title>
 </head>
 <body>
-    
-        <a class="redirect-button" href="http://127.0.0.1:5000/">Home</a><br>
+    <a class="redirect-button" href="{{ url_for('home') }}">Home</a><br>
 
-        <form action="/submit" method="post" class="vehicle-form">
-            <label for="vin">VIN:</label>
-            <input type="text" id="vin" name="vin" required>
-        
-            <label for="spz">SPZ:</label>
-            <input type="text" id="spz" name="spz" required>
-        
-            <label for="znacka">Značka:</label>
-            <input type="text" id="znacka" name="znacka" required>
-        
-            <label for="model">Model:</label>
-            <input type="text" id="model" name="model" required>
-        
-            <label for="rokVyroby">Rok výroby:</label>
-            <input type="number" id="rokVyroby" name="rokVyroby" required>
-        
-            <label for="najetoKm">Najeto km:</label>
-            <input type="number" id="najetoKm" name="najetoKm" required>
-        
-            <button type="submit" class="button">Odeslat</button>
-        </form>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <ul class="flash-messages">
+                {% for category, message in messages %}
+                    <li class="{{ category }}">{{ message }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    {% endwith %}
+
+    <form action="{{ url_for('submit') }}" method="post" class="vehicle-form">
+        {{ csrf_token() }}
+
+        <label for="vin">VIN:</label>
+        <input type="text" id="vin" name="vin" value="{{ data.get('vin', '') if data else '' }}" required>
+
+        <label for="spz">SPZ:</label>
+        <input type="text" id="spz" name="spz" value="{{ data.get('spz', '') if data else '' }}" required>
+
+        <label for="znacka">Zna&#269;ka:</label>
+        <input type="text" id="znacka" name="znacka" value="{{ data.get('znacka', '') if data else '' }}" required>
+
+        <label for="model">Model:</label>
+        <input type="text" id="model" name="model" value="{{ data.get('model', '') if data else '' }}" required>
+
+        <label for="rokVyroby">Rok v&#253;roby:</label>
+        <input type="number" id="rokVyroby" name="rokVyroby" min="1886" value="{{ data.get('rokVyroby', '') if data else '' }}" required>
+
+        <label for="najetoKm">Najeto km:</label>
+        <input type="number" id="najetoKm" name="najetoKm" min="0" value="{{ data.get('najetoKm', '') if data else '' }}" required>
+
+        <button type="submit" class="button">Odeslat</button>
+    </form>
 </body>
-</html> 
+</html>
